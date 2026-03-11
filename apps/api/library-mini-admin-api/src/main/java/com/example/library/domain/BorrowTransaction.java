@@ -1,26 +1,30 @@
 package com.example.library.domain;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 public class BorrowTransaction {
 
     private final String transactionId;
     private final String bookId;
-    private final String borrowerName;
+    private final String readerId;
     private final OffsetDateTime checkedOutAt;
+    private final LocalDate dueDate;
     private OffsetDateTime returnedAt;
 
     public BorrowTransaction(
         String transactionId,
         String bookId,
-        String borrowerName,
+        String readerId,
         OffsetDateTime checkedOutAt,
+        LocalDate dueDate,
         OffsetDateTime returnedAt
     ) {
         this.transactionId = transactionId;
         this.bookId = bookId;
-        this.borrowerName = borrowerName;
+        this.readerId = readerId;
         this.checkedOutAt = checkedOutAt;
+        this.dueDate = dueDate;
         this.returnedAt = returnedAt;
     }
 
@@ -32,12 +36,16 @@ public class BorrowTransaction {
         return this.bookId;
     }
 
-    public String getBorrowerName() {
-        return this.borrowerName;
+    public String getReaderId() {
+        return this.readerId;
     }
 
     public OffsetDateTime getCheckedOutAt() {
         return this.checkedOutAt;
+    }
+
+    public LocalDate getDueDate() {
+        return this.dueDate;
     }
 
     public OffsetDateTime getReturnedAt() {

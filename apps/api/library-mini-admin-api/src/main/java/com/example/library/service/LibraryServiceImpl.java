@@ -13,6 +13,7 @@ import com.example.library.exception.ClientErrorException;
 import com.example.library.repository.BookRepository;
 import com.example.library.repository.BorrowTransactionRepository;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -46,11 +47,26 @@ public class LibraryServiceImpl implements LibraryService {
     }
 
     @Override
-    public PostBooksResponseDTO createBook(String title, String author, int initialCopies) {
+    public PostBooksResponseDTO createBook(
+        String title,
+        String isbn,
+        String author,
+        String category,
+        boolean active,
+        int initialCopies
+    ) {
+        String normalizedIsbn = normalizeRequiredValue(isbn, "isbn");
+        if (this.bookRepository.findByIsbn(normalizedIsbn).isPresent()) {
+            throw new ClientErrorException("isbn already exists");
+        }
+
         Book book = new Book(
             UUID.randomUUID().toString(),
             normalizeRequiredValue(title, "title"),
+            normalizedIsbn,
             normalizeRequiredValue(author, "author"),
+            normalizeRequiredValue(category, "category"),
+            active,
             validatePositiveNumber(initialCopies, "initialCopies")
         );
         this.bookRepository.save(book);
@@ -66,8 +82,12 @@ public class LibraryServiceImpl implements LibraryService {
     }
 
     @Override
-    public PostTransactionsCheckoutResponseDTO checkoutBook(String bookId, String borrowerName) {
-        Book book = getBookOrThrow(bookId);
+    public PostTransactionsCheckoutResponseDTO checkoutBook(String isbn, String readerId, LocalDate dueDate) {
+        Book book = getBookByIsbnOrThrow(isbn);
+        if (!book.isActive()) {
+            throw new ClientErrorException("Book is inactive");
+        }
+
         if (calculateAvailableCopies(book) <= 0) {
             throw new ClientErrorException("No available copies for checkout");
         }
@@ -75,8 +95,9 @@ public class LibraryServiceImpl implements LibraryService {
         BorrowTransaction borrowTransaction = new BorrowTransaction(
             UUID.randomUUID().toString(),
             book.getBookId(),
-            normalizeRequiredValue(borrowerName, "borrowerName"),
+            normalizeRequiredValue(readerId, "readerId"),
             OffsetDateTime.now(this.clock),
+            dueDate,
             null
         );
         this.borrowTransactionRepository.save(borrowTransaction);
@@ -88,23 +109,27 @@ public class LibraryServiceImpl implements LibraryService {
     }
 
     @Override
-    public PostTransactionsReturnResponseDTO returnBook(String transactionId) {
-        BorrowTransaction borrowTransaction = this.borrowTransactionRepository.findById(transactionId)
-            .orElseThrow(() -> new ClientErrorException("Transaction not found"));
-
-        if (!borrowTransaction.isActive()) {
-            throw new ClientErrorException("Transaction is not returnable");
-        }
+    public PostTransactionsReturnResponseDTO returnBook(String isbn, String readerId) {
+        Book book = getBookByIsbnOrThrow(isbn);
+        BorrowTransaction borrowTransaction = this.borrowTransactionRepository.findByBookId(book.getBookId()).stream()
+            .filter(BorrowTransaction::isActive)
+            .filter(transaction -> matchesReaderId(transaction, readerId))
+            .findFirst()
+            .orElseThrow(() -> new ClientErrorException("Active transaction not found"));
 
         borrowTransaction.markReturned(OffsetDateTime.now(this.clock));
         this.borrowTransactionRepository.save(borrowTransaction);
 
-        Book book = getBookOrThrow(borrowTransaction.getBookId());
         return new PostTransactionsReturnResponseDTO(toBookSummaryResponse(book));
     }
 
     private Book getBookOrThrow(String bookId) {
         return this.bookRepository.findById(normalizeRequiredValue(bookId, "bookId"))
+            .orElseThrow(() -> new ClientErrorException("Book not found"));
+    }
+
+    private Book getBookByIsbnOrThrow(String isbn) {
+        return this.bookRepository.findByIsbn(normalizeRequiredValue(isbn, "isbn"))
             .orElseThrow(() -> new ClientErrorException("Book not found"));
     }
 
@@ -137,12 +162,21 @@ public class LibraryServiceImpl implements LibraryService {
 
         int checkedOutCopies = activeTransactions.size();
         int availableCopies = book.getTotalCopies() - checkedOutCopies;
-        BookStatusEnum status = availableCopies > 0 ? BookStatusEnum.AVAILABLE : BookStatusEnum.CHECKED_OUT;
+        BookStatusEnum status;
+        if (!book.isActive()) {
+            status = BookStatusEnum.INACTIVE;
+        } else if (availableCopies > 0) {
+            status = BookStatusEnum.AVAILABLE;
+        } else {
+            status = BookStatusEnum.BORROWED;
+        }
 
         return new BookSummaryResponseDTO(
             book.getBookId(),
             book.getTitle(),
+            book.getIsbn(),
             book.getAuthor(),
+            book.getCategory(),
             book.getTotalCopies(),
             availableCopies,
             checkedOutCopies,
@@ -154,7 +188,7 @@ public class LibraryServiceImpl implements LibraryService {
     private ActiveTransactionResponseDTO toActiveTransactionResponse(BorrowTransaction borrowTransaction) {
         return new ActiveTransactionResponseDTO(
             borrowTransaction.getTransactionId(),
-            borrowTransaction.getBorrowerName(),
+            borrowTransaction.getReaderId(),
             borrowTransaction.getCheckedOutAt()
         );
     }
@@ -164,5 +198,12 @@ public class LibraryServiceImpl implements LibraryService {
             .stream()
             .filter(BorrowTransaction::isActive)
             .count();
+    }
+
+    private boolean matchesReaderId(BorrowTransaction borrowTransaction, String readerId) {
+        if (readerId == null || readerId.trim().isEmpty()) {
+            return true;
+        }
+        return borrowTransaction.getReaderId().equals(readerId.trim());
     }
 }

@@ -13,11 +13,13 @@ export interface ActiveTransaction {
 export interface BookSummary {
   bookId: string
   title: string
+  isbn: string
   author: string
+  category: string
   totalCopies: number
   availableCopies: number
   checkedOutCopies: number
-  status: 'AVAILABLE' | 'CHECKED_OUT'
+  status: 'AVAILABLE' | 'BORROWED' | 'INACTIVE'
   activeTransactions: ActiveTransaction[]
 }
 
@@ -27,7 +29,10 @@ export interface GetBooksResponseDTO {
 
 export interface PostBooksRequestDTO {
   title: string
+  isbn: string
   author: string
+  category: string
+  active: boolean
   initialCopies: number
 }
 
@@ -36,11 +41,18 @@ export interface PostBooksResponseDTO {
 }
 
 export interface PostTransactionsCheckoutRequestDTO {
-  bookId: string
-  borrowerName: string
+  isbn: string
+  readerId: string
+  dueDate?: string
 }
 
 export interface FeedbackState {
+  mode: 'general' | 'borrow' | 'return'
   tone: 'neutral' | 'success' | 'error'
   message: string
+}
+
+export interface PostTransactionsReturnRequestDTO {
+  isbn: string
+  readerId?: string
 }

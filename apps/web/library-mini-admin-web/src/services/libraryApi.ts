@@ -4,6 +4,7 @@ import type {
   PostBooksRequestDTO,
   PostBooksResponseDTO,
   PostTransactionsCheckoutRequestDTO,
+  PostTransactionsReturnRequestDTO,
 } from '../types/library'
 
 export function listBooks() {
@@ -33,8 +34,9 @@ export function checkoutBookCopy(payload: PostTransactionsCheckoutRequestDTO) {
   })
 }
 
-export function returnBookCopy(transactionId: string) {
-  return requestJson(`/api/transactions/${transactionId}/return`, {
+export function returnBookCopy(payload: PostTransactionsReturnRequestDTO) {
+  return requestJson('/api/transactions/return', {
     method: 'POST',
+    body: JSON.stringify(payload),
   })
 }

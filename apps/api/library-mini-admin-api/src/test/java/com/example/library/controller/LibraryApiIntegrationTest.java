@@ -27,19 +27,25 @@ class LibraryApiIntegrationTest {
                 .content("""
                     {
                       "title": "Clean Code",
+                      "isbn": "9780132350884",
                       "author": "Robert C. Martin",
+                      "category": "technology",
+                      "active": true,
                       "initialCopies": 2
                     }
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value("00000"))
-            .andExpect(jsonPath("$.data.book.title").value("Clean Code"));
+            .andExpect(jsonPath("$.data.book.title").value("Clean Code"))
+            .andExpect(jsonPath("$.data.book.isbn").value("9780132350884"))
+            .andExpect(jsonPath("$.data.book.status").value("AVAILABLE"));
 
         this.mockMvc.perform(get("/api/books"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value("00000"))
             .andExpect(jsonPath("$.data.books", hasSize(1)))
-            .andExpect(jsonPath("$.data.books[0].availableCopies").value(2));
+            .andExpect(jsonPath("$.data.books[0].availableCopies").value(2))
+            .andExpect(jsonPath("$.data.books[0].category").value("technology"));
     }
 
     @Test
@@ -49,7 +55,10 @@ class LibraryApiIntegrationTest {
                 .content("""
                     {
                       "title": " ",
+                      "isbn": "9780132350884",
                       "author": "Author",
+                      "category": "technology",
+                      "active": true,
                       "initialCopies": 0
                     }
                     """))
@@ -60,29 +69,18 @@ class LibraryApiIntegrationTest {
 
     @Test
     void shouldReturnBusinessCodeWhenCheckoutWithoutAvailableCopies() throws Exception {
-        String createResponse = this.mockMvc.perform(post("/api/books")
+        this.mockMvc.perform(post("/api/books")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "title": "Domain-Driven Design",
+                      "isbn": "9780321125217",
                       "author": "Eric Evans",
+                      "category": "technology",
+                      "active": true,
                       "initialCopies": 1
                     }
                     """))
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-
-        String bookId = createResponse.split("\"bookId\":\"")[1].split("\"")[0];
-
-        this.mockMvc.perform(post("/api/transactions/checkout")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "bookId": "%s",
-                      "borrowerName": "Samson"
-                    }
-                    """.formatted(bookId)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value("00000"));
 
@@ -90,10 +88,21 @@ class LibraryApiIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "bookId": "%s",
-                      "borrowerName": "Taylor"
+                      "isbn": "9780321125217",
+                      "readerId": "Samson"
                     }
-                    """.formatted(bookId)))
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("00000"));
+
+        this.mockMvc.perform(post("/api/transactions/checkout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "isbn": "9780321125217",
+                      "readerId": "Taylor"
+                    }
+                    """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value("A0000"))
             .andExpect(jsonPath("$.message").value("No available copies for checkout"));

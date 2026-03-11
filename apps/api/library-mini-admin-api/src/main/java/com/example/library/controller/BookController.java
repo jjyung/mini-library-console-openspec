@@ -33,7 +33,14 @@ public class BookController {
     public ApiResponse<PostBooksResponseDTO> createBook(@Valid @RequestBody PostBooksRequestDTO request) {
         return ApiResponse.success(
             "Book created successfully",
-            this.libraryService.createBook(request.title(), request.author(), request.initialCopies())
+            this.libraryService.createBook(
+                request.title(),
+                request.isbn(),
+                request.author(),
+                request.category(),
+                request.active(),
+                request.initialCopies()
+            )
         );
     }
 

@@ -25,6 +25,13 @@ public class InMemoryBookRepository implements BookRepository {
     }
 
     @Override
+    public Optional<Book> findByIsbn(String isbn) {
+        return this.bookStore.values().stream()
+            .filter(book -> book.getIsbn().equals(isbn))
+            .findFirst();
+    }
+
+    @Override
     public List<Book> findAll() {
         return new ArrayList<>(this.bookStore.values());
     }

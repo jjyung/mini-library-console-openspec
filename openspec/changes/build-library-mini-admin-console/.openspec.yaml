@@ -1,0 +1,23 @@
+name: build-library-mini-admin-console
+status: proposed
+createdAt: 2026-03-11
+schema: default
+applyRequires:
+  - proposal
+  - design
+  - tasks
+artifacts:
+  - id: proposal
+    path: proposal.md
+    status: done
+  - id: design
+    path: design.md
+    status: done
+    dependsOn:
+      - proposal
+  - id: tasks
+    path: tasks.md
+    status: done
+    dependsOn:
+      - proposal
+      - design
