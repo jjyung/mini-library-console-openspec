@@ -1,0 +1,69 @@
+openapi: 3.0.3
+info:
+  title: Mini Library Console API
+  version: 1.0.0
+  description: >
+    依據 S3 SD 階段產出的 API 合約。請依需求與架構文件補齊實際內容，
+    並確保所有 API 都包含 API ID、business error code 與 DTO 命名規範。
+servers:
+  - url: /api
+tags:
+  - name: books
+    description: 圖書管理
+paths:
+  /books:
+    get:
+      summary: 列出書籍
+      description: |
+        API ID: library-books-001
+        依實際需求補充查詢條件、分頁與權限限制。
+      operationId: getBooks
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+          description: 頁碼
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetBooksResponseDTO'
+        '400':
+          description: Client Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+components:
+  schemas:
+    GetBooksResponseDTO:
+      type: object
+      properties:
+        code:
+          type: string
+          example: '00000'
+        message:
+          type: string
+          example: success
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    BusinessErrorResponseDTO:
+      type: object
+      properties:
+        code:
+          type: string
+          example: A0000
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true

@@ -1,0 +1,36 @@
+schema: delivery-responsibility
+
+context: |
+  所有文件內容必須統一使用繁體中文撰寫。
+  本專案的文件產出順序應以 Scenario -> Requirements -> Architecture -> API Contract -> Tasks -> QA Report 為主軸。
+  所有 API 必須遵守專案的 API ID、DTO naming、business error code 與 centralized client 規範。
+  所有 UI 調整不得破壞既有 data-testid。
+
+rules:
+  scenario:
+    - 需聚焦使用者情境、商業目標、範圍與驗收方向。
+    - 如果需求不明，必須明確列出 open questions，不可自行隱含決策。
+
+  requirements:
+    - 需求文件必須明確區分 in scope 與 out of scope。
+    - 驗收條件優先使用可驗證的 Given/When/Then 或等價格式。
+    - 所有錯誤情境需對應 business error code 設計。
+
+  architecture:
+    - 必須說明 FE、BE、共享契約與外部依賴的責任邊界。
+    - 對重要設計選擇需記錄原因、替代方案與風險。
+
+  apiContract:
+    - 必須使用有效的 OpenAPI 3.x YAML。
+    - operationId 不可使用 API ID。
+    - Request/Response DTO 命名必須遵循 {HttpMethod}{ResourcePlural}RequestDTO/ResponseDTO。
+    - API 描述中必須可追溯唯一 API ID。
+
+  tasks:
+    - 任務拆解需適合單人或單 agent 逐步執行。
+    - 每一項任務都應具備可實作性，不可只寫抽象口號。
+    - 必須包含驗證或完成定義，方便 apply 階段逐項勾選。
+
+  qaReport:
+    - 缺陷需標示 owner、severity、status 與 fix plan。
+    - 需明確指出回流到 FE、BE、SD、Archi 或 SA 的條件。
