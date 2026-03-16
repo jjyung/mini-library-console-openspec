@@ -33,6 +33,12 @@ openspec init
 - `openspec-apply-change`: 用來依照既有 OpenSpec change 實作任務內容。
 - `openspec-archive-change`: 用來在實作完成後封存 change 與收尾流程。
 
+OpenSpec 預設的 `spec-driven` 使用方式，通常會讓使用者先理解為：
+
+- `propose` 會產出 proposal、design、tasks 等可供後續實作的文件
+- `apply` 會根據 schema 定義的任務文件逐項執行實作
+- skills 的實際行為會參考 change 綁定的 schema，而不是永遠固定使用預設 artifact
+
 ## 建議使用流程
 
 建議依序使用：
@@ -52,7 +58,54 @@ openspec init
 
 ## 自定義 Workflow
 
+這一節說明本專案如何在保留 OpenSpec 預設使用方式理解的前提下，進一步透過 custom schema 改寫 artifact 結構與 skill 實際行為。
+
+### 本專案的 Schema
+
+本專案目前使用的自定義 schema 是 `delivery-responsibility`，位置如下：
+
+```text
+openspec/
+├── config.yaml
+└── schemas/
+    └── delivery-responsibility/
+        ├── schema.yaml
+        └── templates/
+```
+
+這個 schema 以文件驅動交付為主，並保留一份輕量 `tasks` 清單供 `apply` 階段逐步執行：
+
+`scenario -> requirements -> architecture -> apiContract -> tasks -> qaReport`
+
+各 artifact 的角色如下：
+
+- `scenario`: 情境與商業目標澄清
+- `requirements`: SA 需求定義
+- `architecture`: Archi 架構設計
+- `apiContract`: SD API / schema 契約
+- `tasks`: 單人實作友善的輕量任務清單
+- `qaReport`: QA 驗證與缺陷回饋
+
+如果未額外指定 `--schema`，OpenSpec 會直接使用 `openspec/config.yaml` 中設定的 `delivery-responsibility`。
+
 在 OpenSpec 中，`config.yaml` 與 `schema.yaml` 分別代表了不同層次的自定義需求：前者用於調整「現有工作流的行為」，後者則用於定義「全新的工作流結構」。
+
+### Skill 行為如何因 Schema 改變
+
+OpenSpec 的 skill 文案通常會以預設 schema 為例，例如提到 `proposal`、`design`、`tasks`。但實際執行時，CLI 仍然會依據 change 所綁定的 schema 決定：
+
+- 要建立哪些 artifact
+- artifact 的依賴順序
+- `apply` 階段需要哪些文件才算 ready
+- `apply` 要追蹤哪一份任務文件
+
+以本專案為例：
+
+- `propose` 不會固定只產出預設的 `proposal/design/tasks`
+- 它會依 `delivery-responsibility` schema 改為產出 `scenario / requirements / architecture / apiContract / tasks / qaReport`
+- `apply` 也會依 `schema.yaml` 中的 `apply.requires` 與 `apply.tracks`，以 `tasks` 作為實作清單來源
+
+因此，使用者可以先理解 OpenSpec 的預設行為，再從本節看到：一旦指定 custom schema，skills 的實際 artifact 與 apply 流程會跟著 schema 改變。
 
 以下是這兩個檔案的詳細說明：
 
@@ -60,7 +113,7 @@ openspec init
 
 這是最簡單的自定義方式，檔案位於 `openspec/config.yaml`。它主要用於設定專案的全局偏好，而不需要改變工作流的本質。
 
-- **設定預設架構 (Default Schema)**：您可以指定一個預設的架構名稱，這樣在執行指令時就可以省略 `--schema` 參數。
+- **設定預設架構 (Default Schema)**：本專案目前預設為 `delivery-responsibility`，因此在執行指令時可以省略 `--schema`。
 - **注入專案上下文 (Project Context)**：您可以將專案的技術棧 (Tech Stack) 或開發慣例寫在這裡。這些資訊會出現在**所有**產出物的 AI 提示詞中。
 - **添加特定產出物規則 (Per-artifact Rules)**：您可以針對特定的產出物 ID 設定規則，這些規則**僅在**生成該特定產出物時才會被注入到 AI 提示詞中。
 - **解析順序**：在系統尋找架構時，`config.yaml` 的優先順序排在 CLI 標籤與變動元數據之後，但在系統預設值之前。
@@ -75,6 +128,7 @@ openspec init
   - **template**: 指向 `templates/` 目錄下的模板文件，引導 AI 產出內容。
   - **instruction**: 提供給 AI 的具體指令，說明如何建立該產出物。
   - **requires**: 定義依賴關係，指定哪些檔案必須先生成。
+- **本專案實例**：`openspec/schemas/delivery-responsibility/schema.yaml` 以文件交付為核心，透過 `requires` 描述 SA、Archi、SD、Tasks、QA 對應文件之間的依賴順序。
 - **靈活性**：您可以從頭開始建立，或是透過 **Fork** 現有的架構（如 `spec-driven`）來快速修改。
 - **驗證機制**：在使用自定義架構前，可以透過 `openspec schema validate` 指令檢查語法、模板是否存在、以及是否有循環依賴等問題。
 
