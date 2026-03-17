@@ -3,6 +3,9 @@ schema: delivery-responsibility
 context: |
   所有文件內容必須統一使用繁體中文撰寫。
   本專案的文件產出順序應以 Scenario -> Requirements -> Architecture -> API Contract -> Tasks -> QA Report 為主軸。
+  OpenSpec propose/apply 期間產出的 artifact 應視為 change 工作稿，預設寫入 openspec/changes/<change>/docs/**。
+  repo 根目錄下的 docs/** 為跨 change 統整後的正式文件區，只同步需要長期維護的共享知識，例如 openapi、api flow、schema 與經整理後的 architecture / requirements。
+  tasks 僅作為 change-local 實作追蹤用途，不同步到 repo 根目錄 docs/**。
   所有 API 必須遵守專案的 API ID、DTO naming、business error code 與 centralized client 規範。
   所有 UI 調整不得破壞既有 data-testid。
 
@@ -30,6 +33,7 @@ rules:
     - 任務拆解需適合單人或單 agent 逐步執行。
     - 每一項任務都應具備可實作性，不可只寫抽象口號。
     - 必須包含驗證或完成定義，方便 apply 階段逐項勾選。
+    - tasks 僅保留於 change 工作稿，不得作為 repo 根目錄 docs/** 的長期正式文件。
 
   qaReport:
     - 缺陷需標示 owner、severity、status 與 fix plan。
