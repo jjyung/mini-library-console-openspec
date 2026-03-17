@@ -1,5 +1,8 @@
 # Tasks: TASK-<DOMAIN>-<NNN>
 
+> This file is change-local only. Do not promote it to repo-level `docs/**`.
+> Use it for apply tracking and short-lived implementation coordination only.
+
 ## Metadata
 
 - Task ID: TASK-<DOMAIN>-<NNN>

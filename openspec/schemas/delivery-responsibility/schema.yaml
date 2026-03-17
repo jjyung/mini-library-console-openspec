@@ -1,70 +1,77 @@
 name: delivery-responsibility
 version: 1
-description: Document-driven schema for enterprise-style software delivery responsibilities.
+description: Document-driven schema for enterprise-style software delivery responsibilities. Artifact paths are resolved inside each change directory as working drafts; repo-level docs are curated separately as canonical shared documents.
 
 artifacts:
   - id: scenario
     generates: docs/scenarios/SCN-*.md
-    description: Scenario discovery output for S0.
+    description: Scenario discovery output for S0. This artifact is a change-local working draft under openspec/changes/<change>/docs/.
     template: scenario.md
     instruction: |
       請先完成 S0 Scenario Discovery。
       產出一份可執行的情境文件，明確描述商業目標、使用者旅程、範圍、限制條件、驗收方式與待確認事項。
+      此 artifact 為 change 目錄下的工作稿，供本次 propose / apply / archive 流程追蹤，不應直接視為 repo 正式文件的唯一來源。
       檔名必須遵循 SCN-<DOMAIN>-<NNN>.md。
     requires: []
 
   - id: requirements
     generates: docs/requirements/REQ-*.md
-    description: Requirement package for S1 SA.
+    description: Requirement package for S1 SA. This artifact is a change-local working draft under openspec/changes/<change>/docs/.
     template: requirements.md
     instruction: |
       請完成 S1 SA 階段的需求文件。
       內容需清楚定義 business goal、in scope、out of scope、角色/權限、主要流程、規則、非功能性需求、驗收條件與未決議題。
+      此 artifact 為 change 目錄下的工作稿，若要更新 repo 根目錄 docs/requirements，應在需求確認後另行同步整理。
       檔名必須遵循 REQ-<DOMAIN>-<NNN>.md。
     requires:
       - scenario
 
   - id: architecture
     generates: docs/architecture/ARCH-*.md
-    description: Architecture decision and technical design for S2.
+    description: Architecture decision and technical design for S2. This artifact is a change-local working draft under openspec/changes/<change>/docs/.
     template: architecture.md
     instruction: |
       請完成 S2 Archi 階段的架構設計文件。
       內容需說明模組切分、資料流、邊界、風險、替代方案、依賴系統與與需求的對應關係。
+      此 artifact 為 change 目錄下的工作稿，供本次 change 設計決策使用；正式架構知識需再整理回 repo 根目錄文件。
       檔名必須遵循 ARCH-<DOMAIN>-<NNN>.md。
     requires:
       - requirements
 
   - id: apiContract
     generates: docs/openapi/openapi.yaml
-    description: API and schema contract for S3 SD.
+    description: API and schema contract for S3 SD. This artifact is a change-local working draft under openspec/changes/<change>/docs/.
     template: api-contract.yaml
     instruction: |
       請完成 S3 SD 階段的 API contract。
       產出必須為有效的 OpenAPI 3.x YAML，並完整對應需求與架構文件。
       需要包含 business error code、DTO naming、API ID、主要錯誤情境與必要範例。
+      此 artifact 為 change 目錄下的工作稿，若要成為 repo 共用契約，需在變更確認後同步回根目錄 docs/openapi。
     requires:
       - requirements
       - architecture
 
   - id: tasks
     generates: docs/tasks/TASK-*.md
-    description: Lightweight implementation checklist for apply flow.
+    description: Lightweight implementation checklist for apply flow. This artifact is change-local only under openspec/changes/<change>/docs/ and must not be synchronized to repo-level docs/.
     template: tasks.md
     instruction: |
       請產出適合單人或單 agent 執行的輕量任務清單。
       任務應聚焦於實作順序、驗證步驟、風險控管與完成定義，不需要多角色平行分工。
+      此 artifact 為 change 目錄下的工作稿與 apply 追蹤來源，只供本次 change 實作期間使用。
+      tasks 不應同步到 repo 根目錄 docs/**，也不應作為跨 change 的正式知識文件。
       檔名必須遵循 TASK-<DOMAIN>-<NNN>.md。
     requires:
       - apiContract
 
   - id: qaReport
     generates: docs/qa-report/QA-*.md
-    description: QA verification and defect loop for S6.
+    description: QA verification and defect loop for S6. This artifact is a change-local working draft under openspec/changes/<change>/docs/.
     template: qa-report.md
     instruction: |
       請完成 S6 QA 階段的驗證報告。
       內容需包含測試範圍、結果摘要、缺陷清單、回流判定與最終結論。
+      此 artifact 為 change 目錄下的工作稿；若 QA 結論需要跨 change 保留，應整理成正式 QA 知識後再同步回 repo 根目錄文件區。
       檔名必須遵循 QA-<DOMAIN>-<NNN>.md。
     requires:
       - tasks
@@ -72,4 +79,4 @@ artifacts:
 apply:
   requires:
     - tasks
-  tracks: docs/tasks/*.md
+  tracks: docs/tasks/tasks.md
