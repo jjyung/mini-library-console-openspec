@@ -1,0 +1,370 @@
+openapi: 3.0.3
+info:
+  title: Mini Library Console API
+  version: 1.0.0
+  description: >
+    共享書櫃最小可用管理台 API 合約。此合約對應 SCN-LIB-001、
+    REQ-LIB-001 與 ARCH-LIB-001，定義館藏建立、補充庫存、借出、歸還
+    與查詢總覽所需的 request / response schema、business error code 與 API ID。
+servers:
+  - url: /api
+tags:
+  - name: books
+    description: 書籍館藏管理
+  - name: transactions
+    description: 借閱交易管理
+paths:
+  /books:
+    get:
+      tags:
+        - books
+      summary: 列出共享書櫃館藏
+      description: |
+        API ID: library-books-001
+
+        回傳共享書櫃中的所有書籍摘要，包含可借數量、借出數量、狀態與 active borrowing。
+      operationId: booksList
+      responses:
+        '200':
+          description: 成功或 client error business response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/GetBooksApiResponseDTO'
+                  - $ref: '#/components/schemas/BusinessErrorResponseDTO'
+        '500':
+          description: 系統錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+    post:
+      tags:
+        - books
+      summary: 建立書籍
+      description: |
+        API ID: library-books-002
+
+        建立一筆新的共享書櫃書籍資料，並設定初始 copies。
+      operationId: booksCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostBooksRequestDTO'
+      responses:
+        '200':
+          description: 成功或 client error business response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PostBooksApiResponseDTO'
+                  - $ref: '#/components/schemas/BusinessErrorResponseDTO'
+        '500':
+          description: 系統錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+  /books/{bookId}/copies:
+    post:
+      tags:
+        - books
+      summary: 補充書籍庫存
+      description: |
+        API ID: library-books-003
+
+        為指定書籍增加 copies，避免以新增重複書籍資料的方式維護庫存。
+      operationId: booksCopiesCreate
+      parameters:
+        - in: path
+          name: bookId
+          required: true
+          description: 書籍識別碼
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostBooksCopiesRequestDTO'
+      responses:
+        '200':
+          description: 成功或 client error business response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PostBooksApiResponseDTO'
+                  - $ref: '#/components/schemas/BusinessErrorResponseDTO'
+        '500':
+          description: 系統錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+  /transactions/checkout:
+    post:
+      tags:
+        - transactions
+      summary: 借出書籍
+      description: |
+        API ID: library-transactions-001
+
+        建立一筆 active borrowing，並回傳更新後的書籍摘要與本次借閱紀錄。
+      operationId: transactionsCheckoutCreate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostTransactionsCheckoutRequestDTO'
+      responses:
+        '200':
+          description: 成功或 client error business response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PostTransactionsCheckoutApiResponseDTO'
+                  - $ref: '#/components/schemas/BusinessErrorResponseDTO'
+        '500':
+          description: 系統錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+  /transactions/{transactionId}/return:
+    post:
+      tags:
+        - transactions
+      summary: 歸還書籍
+      description: |
+        API ID: library-transactions-002
+
+        結束一筆 active borrowing，並回傳更新後的書籍摘要。
+      operationId: transactionsReturnCreate
+      parameters:
+        - in: path
+          name: transactionId
+          required: true
+          description: 借閱交易識別碼
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功或 client error business response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PostTransactionsReturnApiResponseDTO'
+                  - $ref: '#/components/schemas/BusinessErrorResponseDTO'
+        '500':
+          description: 系統錯誤
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+components:
+  schemas:
+    GetBooksApiResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+        - data
+      properties:
+        code:
+          type: string
+          example: '00000'
+        message:
+          type: string
+          example: Books fetched successfully
+        data:
+          $ref: '#/components/schemas/GetBooksResponseDTO'
+    PostBooksApiResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+        - data
+      properties:
+        code:
+          type: string
+          example: '00000'
+        message:
+          type: string
+          example: Book created successfully
+        data:
+          $ref: '#/components/schemas/PostBooksResponseDTO'
+    PostTransactionsCheckoutApiResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+        - data
+      properties:
+        code:
+          type: string
+          example: '00000'
+        message:
+          type: string
+          example: Checkout completed successfully
+        data:
+          $ref: '#/components/schemas/PostTransactionsCheckoutResponseDTO'
+    PostTransactionsReturnApiResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+        - data
+      properties:
+        code:
+          type: string
+          example: '00000'
+        message:
+          type: string
+          example: Return completed successfully
+        data:
+          $ref: '#/components/schemas/PostTransactionsReturnResponseDTO'
+    BusinessErrorResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - A0000
+            - B0000
+            - C0000
+        message:
+          type: string
+          example: Request could not be completed.
+    GetBooksResponseDTO:
+      type: object
+      required:
+        - books
+      properties:
+        books:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookSummaryResponseDTO'
+    PostBooksRequestDTO:
+      type: object
+      required:
+        - title
+        - author
+        - initialCopies
+      properties:
+        title:
+          type: string
+          minLength: 1
+        author:
+          type: string
+          minLength: 1
+        initialCopies:
+          type: integer
+          minimum: 1
+    PostBooksCopiesRequestDTO:
+      type: object
+      required:
+        - additionalCopies
+      properties:
+        additionalCopies:
+          type: integer
+          minimum: 1
+    PostBooksResponseDTO:
+      type: object
+      required:
+        - book
+      properties:
+        book:
+          $ref: '#/components/schemas/BookSummaryResponseDTO'
+    PostTransactionsCheckoutRequestDTO:
+      type: object
+      required:
+        - bookId
+        - borrowerName
+      properties:
+        bookId:
+          type: string
+          minLength: 1
+        borrowerName:
+          type: string
+          minLength: 1
+    PostTransactionsCheckoutResponseDTO:
+      type: object
+      required:
+        - book
+        - transaction
+      properties:
+        book:
+          $ref: '#/components/schemas/BookSummaryResponseDTO'
+        transaction:
+          $ref: '#/components/schemas/ActiveTransactionResponseDTO'
+    PostTransactionsReturnResponseDTO:
+      type: object
+      required:
+        - book
+      properties:
+        book:
+          $ref: '#/components/schemas/BookSummaryResponseDTO'
+    BookSummaryResponseDTO:
+      type: object
+      required:
+        - bookId
+        - title
+        - author
+        - totalCopies
+        - availableCopies
+        - checkedOutCopies
+        - status
+        - activeTransactions
+      properties:
+        bookId:
+          type: string
+        title:
+          type: string
+        author:
+          type: string
+        totalCopies:
+          type: integer
+          minimum: 1
+        availableCopies:
+          type: integer
+          minimum: 0
+        checkedOutCopies:
+          type: integer
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/BookStatusEnum'
+        activeTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActiveTransactionResponseDTO'
+    ActiveTransactionResponseDTO:
+      type: object
+      required:
+        - transactionId
+        - borrowerName
+        - checkedOutAt
+      properties:
+        transactionId:
+          type: string
+        borrowerName:
+          type: string
+        checkedOutAt:
+          type: string
+          format: date-time
+    BookStatusEnum:
+      type: string
+      enum:
+        - AVAILABLE
+        - CHECKED_OUT

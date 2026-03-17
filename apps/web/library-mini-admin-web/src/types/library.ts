@@ -4,6 +4,8 @@ export interface ApiEnvelope<TData> {
   data?: TData
 }
 
+export type BusinessCode = '00000' | 'A0000' | 'B0000' | 'C0000'
+
 export interface ActiveTransaction {
   transactionId: string
   borrowerName: string

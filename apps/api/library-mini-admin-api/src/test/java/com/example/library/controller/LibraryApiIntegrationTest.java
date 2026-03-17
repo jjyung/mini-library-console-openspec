@@ -98,4 +98,12 @@ class LibraryApiIntegrationTest {
             .andExpect(jsonPath("$.code").value("A0000"))
             .andExpect(jsonPath("$.message").value("No available copies for checkout"));
     }
+
+    @Test
+    void shouldReturnBusinessCodeWhenReturningUnknownTransaction() throws Exception {
+        this.mockMvc.perform(post("/api/transactions/{transactionId}/return", "missing-transaction"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("A0000"))
+            .andExpect(jsonPath("$.message").value("Transaction not found"));
+    }
 }

@@ -29,3 +29,32 @@ test('create book, add copy, checkout, and return via test ids', async ({ page }
   await expect(firstBookCard.getByTestId('book-checked-out-copies')).toHaveText('0')
   await expect(firstBookCard.getByTestId('empty-transaction-state')).toBeVisible()
 })
+
+test('show mapped feedback when checkout returns a business error', async ({ page }) => {
+  await page.goto('/')
+
+  await page.getByTestId('create-book-title-input').fill('Domain-Driven Design')
+  await page.getByTestId('create-book-author-input').fill('Eric Evans')
+  await page.getByTestId('create-book-copies-input').fill('1')
+  await page.getByTestId('create-book-submit-button').click()
+
+  const firstBookCard = page.getByTestId('book-card').first()
+  await page.route('**/api/transactions/checkout', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'A0000',
+        message: 'No available copies for checkout',
+      }),
+    })
+  })
+
+  await firstBookCard.getByTestId('book-checkout-borrower-input').fill('Taylor')
+  await firstBookCard.getByTestId('book-checkout-button').click()
+
+  await expect(page.getByTestId('library-feedback')).toHaveText(
+    'This title has no available copies to check out.',
+  )
+  await expect(firstBookCard.getByTestId('book-available-copies')).toHaveText('1')
+})

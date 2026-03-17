@@ -1,4 +1,4 @@
-# SCN-LIB-001
+# Scenario: SCN-LIB-001
 
 ## Metadata
 
@@ -8,7 +8,6 @@
 - Priority: high
 - Status: draft
 - Related Workflow: WF-LIB-001
-- Related Change: shared-shelf-borrowing-visibility
 
 ## Business Goal
 
@@ -39,52 +38,6 @@
    畫面需提供成功或錯誤訊息，並即時更新書籍卡片中的 total copies、available copies、checked out copies、status 與 active borrowing 清單；頁首 summary 也需同步更新。
 4. Completion state
    完成一輪建立、借出、歸還後，館藏狀態仍保持可追蹤，借閱記錄可被辨識，且系統能正確反映書籍是否可借。
-
-## Story Narrative
-
-### Scene 1: 建立共享書櫃的初始館藏
-
-公司團隊決定把共享書櫃納入最小可用管理流程。管理員第一次進入系統時，先將現有書籍建立到系統中，例如：
-
-- Clean Code
-- Domain-Driven Design
-- Designing Data-Intensive Applications
-
-每本書都需要至少具備：
-
-- 書名
-- 作者
-- 初始庫存數量
-
-當建立完成後，畫面應出現對應的書籍卡片，讓使用者知道這些書已經正式進入可管理狀態。
-
-### Scene 2: 補充庫存以反映真實書況
-
-若團隊後續又添購同一本書的新副本，管理員應能直接在既有書籍卡片上補充 copies，而不需要重建另一筆書籍資料。這個行為代表系統不只是在記錄書名，而是在管理同一本書的可借副本數。
-
-此場景雖然不是最核心的借還書故事，但它能幫助系統維持真實庫存，並避免同一本書分裂成多筆資料。
-
-### Scene 3: 借閱發生並留下可追蹤紀錄
-
-Samson 想借 `Clean Code`。使用者在書籍清單中找到該書後，輸入借閱人姓名並執行借出。借出成功後，系統應該同時呈現以下變化：
-
-- available copies 減少
-- checked out copies 增加
-- 書籍 status 依剩餘庫存反映目前狀態
-- active borrowing 區塊出現借閱人與借出時間
-
-這一幕的重點不是單純完成按鈕操作，而是讓共享書櫃從「有人拿走一本書」轉變為「系統知道誰正在借哪一本書」。
-
-### Scene 4: 歸還後回復可借狀態
-
-當 Samson 把書還回來後，使用者可直接從 active borrowing 清單執行歸還。歸還成功後，系統應該恢復書籍的可借狀態，並清楚顯示這次借閱流程已結束：
-
-- available copies 恢復
-- checked out copies 減少
-- active borrowing 中對應借閱紀錄消失
-- 若已無任何借閱，畫面顯示空狀態提示
-
-這表示共享書櫃的資訊重新回到可被信任的狀態。
 
 ## Scope
 

@@ -20,11 +20,10 @@ export function useLibraryDashboard() {
 
   async function loadBooks() {
     await runAction(async () => {
-      const response = await listBooks()
-      books.value = response.books
+      await refreshBooks()
       feedback.value = {
         tone: 'neutral',
-        message: response.books.length > 0 ? 'Inventory refreshed.' : DEFAULT_FEEDBACK.message,
+        message: books.value.length > 0 ? 'Inventory refreshed.' : DEFAULT_FEEDBACK.message,
       }
     })
   }
@@ -32,7 +31,7 @@ export function useLibraryDashboard() {
   async function handleCreateBook(payload: { title: string; author: string; initialCopies: number }) {
     await runAction(async () => {
       await createBook(payload)
-      await loadBooks()
+      await refreshBooks()
       feedback.value = {
         tone: 'success',
         message: 'Book created successfully.',
@@ -43,7 +42,7 @@ export function useLibraryDashboard() {
   async function handleAddCopies(payload: { bookId: string; additionalCopies: number }) {
     await runAction(async () => {
       await addBookCopies(payload)
-      await loadBooks()
+      await refreshBooks()
       feedback.value = {
         tone: 'success',
         message: 'Copies added successfully.',
@@ -54,7 +53,7 @@ export function useLibraryDashboard() {
   async function handleCheckoutBook(payload: { bookId: string; borrowerName: string }) {
     await runAction(async () => {
       await checkoutBookCopy(payload)
-      await loadBooks()
+      await refreshBooks()
       feedback.value = {
         tone: 'success',
         message: 'Checkout completed successfully.',
@@ -65,7 +64,7 @@ export function useLibraryDashboard() {
   async function handleReturnBook(payload: { transactionId: string }) {
     await runAction(async () => {
       await returnBookCopy(payload.transactionId)
-      await loadBooks()
+      await refreshBooks()
       feedback.value = {
         tone: 'success',
         message: 'Return completed successfully.',
@@ -82,6 +81,11 @@ export function useLibraryDashboard() {
     } finally {
       busyState.value = false
     }
+  }
+
+  async function refreshBooks() {
+    const response = await listBooks()
+    books.value = response.books
   }
 
   return {
