@@ -1,90 +1,124 @@
 <script setup lang="ts">
-import BookCollectionPanel from './BookCollectionPanel.vue'
-import CreateBookPanel from './CreateBookPanel.vue'
-import EmptyStatePanel from './EmptyStatePanel.vue'
+import { ref } from 'vue'
+import AddBookForm from './AddBookForm.vue'
+import BookTable from './BookTable.vue'
+import TopBar from './TopBar.vue'
+import TransactionCard from './TransactionCard.vue'
 import { useLibraryDashboard } from '../composables/useLibraryDashboard'
+import type { PostBooksRequestDTO, PostLoansBorrowRequestDTO, PostLoansReturnRequestDTO } from '../types/library'
 
 const {
   books,
   isLoading,
   feedback,
+  searchKeyword,
+  availableCount,
+  borrowedCount,
   loadBooks,
   createBook,
-  addCopies,
-  checkoutBook,
+  borrowBook,
   returnBook,
 } = useLibraryDashboard()
+
+const borrowPrefillIsbn = ref('')
+const returnPrefillIsbn = ref('')
+const transactionMode = ref<'borrow' | 'return'>('borrow')
+
+async function handleSearch(keyword: string) {
+  await loadBooks(keyword)
+}
+
+async function handleCreateBook(payload: PostBooksRequestDTO) {
+  await createBook(payload)
+}
+
+async function handleBorrow(payload: PostLoansBorrowRequestDTO) {
+  await borrowBook(payload)
+}
+
+async function handleReturn(payload: PostLoansReturnRequestDTO) {
+  await returnBook(payload)
+  returnPrefillIsbn.value = payload.isbn
+  transactionMode.value = 'return'
+}
+
+function handleQuickBorrow(isbn: string) {
+  borrowPrefillIsbn.value = isbn
+  transactionMode.value = 'borrow'
+}
+
+async function handleQuickReturn(isbn: string) {
+  returnPrefillIsbn.value = isbn
+  transactionMode.value = 'return'
+  await returnBook({ isbn })
+}
 </script>
 
 <template>
-  <main class="page-shell" data-testid="library-page">
-    <section class="hero-panel">
-      <p class="eyebrow">Shared Shelf Console</p>
-      <div class="hero-copy">
-        <div>
-          <h1>Track every copy before it disappears from the shelf.</h1>
-          <p class="hero-description">
-            Create books, top up inventory, lend copies to teammates, and return active loans from
-            one operational view.
-          </p>
-        </div>
-        <button
-          class="ghost-button"
-          data-testid="refresh-books-button"
-          type="button"
-          @click="loadBooks"
-        >
-          Refresh
-        </button>
-      </div>
-      <dl class="stat-strip">
-        <div>
-          <dt>Titles</dt>
-          <dd data-testid="book-count">{{ books.length }}</dd>
-        </div>
-        <div>
-          <dt>Available</dt>
-          <dd data-testid="available-count">
-            {{ books.reduce((totalCopies, book) => totalCopies + book.availableCopies, 0) }}
-          </dd>
-        </div>
-        <div>
-          <dt>Checked out</dt>
-          <dd data-testid="checked-out-count">
-            {{ books.reduce((totalCopies, book) => totalCopies + book.checkedOutCopies, 0) }}
-          </dd>
-        </div>
-      </dl>
-    </section>
+  <div data-testid="library-page">
+    <TopBar :busy="isLoading" :search-keyword="searchKeyword" @refresh="loadBooks()" @search="handleSearch" />
 
-    <section class="workspace-grid">
-      <CreateBookPanel :busy="isLoading" @submit="createBook" />
-
-      <section class="content-panel">
-        <header class="section-header">
+    <main class="dashboard-shell">
+      <section class="hero-panel">
+        <p class="eyebrow">Library Mini Admin</p>
+        <div class="hero-copy">
           <div>
-            <p class="section-label">Live inventory</p>
-            <h2>Bookshelf operations</h2>
+            <h1>在單一控制台掌握館藏與借還。</h1>
+            <p class="hero-description">
+              以 ISBN 為主識別，快速搜尋、建書、借出與歸還，讓共享書櫃的狀態一眼可見。
+            </p>
           </div>
-          <span
-            class="feedback-banner"
-            :class="`tone-${feedback.tone}`"
-            data-testid="library-feedback"
-          >
+          <span class="feedback-banner" :class="`tone-${feedback.tone}`" data-testid="library-feedback">
             {{ feedback.message }}
           </span>
-        </header>
+        </div>
 
-        <EmptyStatePanel v-if="!isLoading && books.length === 0" />
-        <BookCollectionPanel
-          v-else
+        <dl class="stat-strip">
+          <div>
+            <dt>館藏數</dt>
+            <dd data-testid="book-count">{{ books.length }}</dd>
+          </div>
+          <div>
+            <dt>可借數</dt>
+            <dd data-testid="available-count">{{ availableCount }}</dd>
+          </div>
+          <div>
+            <dt>借出數</dt>
+            <dd data-testid="checked-out-count">{{ borrowedCount }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="workspace-grid">
+        <TransactionCard
+          :active-mode="transactionMode"
+          :borrow-prefill-isbn="borrowPrefillIsbn"
+          :busy="isLoading"
+          :return-prefill-isbn="returnPrefillIsbn"
+          @borrow="handleBorrow"
+          @return-book="handleReturn"
+        />
+        <AddBookForm :busy="isLoading" @submit="handleCreateBook" />
+      </section>
+
+      <section class="content-panel">
+        <div class="section-heading">
+          <div>
+            <p class="section-label">Live inventory</p>
+            <h2>館藏列表</h2>
+          </div>
+          <button class="ghost-button" data-testid="refresh-books-button" :disabled="isLoading" type="button" @click="loadBooks()">
+            Refresh
+          </button>
+        </div>
+
+        <BookTable
           :books="books"
           :busy="isLoading"
-          @add-copies="addCopies"
-          @checkout="checkoutBook"
-          @return-book="returnBook"
+          @quick-borrow="handleQuickBorrow"
+          @quick-return="handleQuickReturn"
         />
       </section>
-    </section>
-  </main>
+    </main>
+  </div>
 </template>

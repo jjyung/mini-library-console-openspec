@@ -2,18 +2,23 @@ package com.example.library.service;
 
 import com.example.library.controller.dto.GetBooksResponseDTO;
 import com.example.library.controller.dto.PostBooksResponseDTO;
-import com.example.library.controller.dto.PostTransactionsCheckoutResponseDTO;
-import com.example.library.controller.dto.PostTransactionsReturnResponseDTO;
+import com.example.library.controller.dto.PostLoansBorrowResponseDTO;
+import com.example.library.controller.dto.PostLoansReturnResponseDTO;
 
 public interface LibraryService {
 
-    GetBooksResponseDTO listBooks();
+    GetBooksResponseDTO listBooks(String keyword, String status);
 
-    PostBooksResponseDTO createBook(String title, String author, int initialCopies);
+    PostBooksResponseDTO createBook(
+        String title,
+        String isbn,
+        String author,
+        String category,
+        int quantity,
+        boolean active
+    );
 
-    PostBooksResponseDTO addCopies(String bookId, int additionalCopies);
+    PostLoansBorrowResponseDTO borrowBook(String isbn, String readerId);
 
-    PostTransactionsCheckoutResponseDTO checkoutBook(String bookId, String borrowerName);
-
-    PostTransactionsReturnResponseDTO returnBook(String transactionId);
+    PostLoansReturnResponseDTO returnBook(String isbn, String readerId);
 }

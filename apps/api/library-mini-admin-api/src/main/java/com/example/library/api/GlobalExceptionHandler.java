@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ClientErrorException.class)
     public ResponseEntity<ApiResponse<Void>> handleClientError(ClientErrorException exception) {
-        return ResponseEntity.ok(ApiResponse.failure(BusinessCode.CLIENT_ERROR, exception.getMessage()));
+        return ResponseEntity.ok(ApiResponse.failure(exception.getBusinessCode(), exception.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
             .findFirst()
             .map(fieldError -> fieldError.getField() + " " + fieldError.getDefaultMessage())
             .orElse("Validation failed");
-        return ResponseEntity.ok(ApiResponse.failure(BusinessCode.CLIENT_ERROR, message));
+        return ResponseEntity.ok(ApiResponse.failure(BusinessCode.VALIDATION_ERROR, message));
     }
 
     @ExceptionHandler(RuntimeException.class)

@@ -35,6 +35,11 @@ export async function requestJson<TResponse>(path: string, init?: RequestInit): 
 function mapBusinessCodeMessage(envelope: ApiEnvelope<unknown>) {
   switch (envelope.code) {
     case 'A0000':
+    case 'A0400':
+    case 'A0404':
+    case 'A0409':
+    case 'A0410':
+    case 'A0411':
       return envelope.message || 'Request could not be completed.'
     case 'B0000':
       return 'Library service encountered a system error.'

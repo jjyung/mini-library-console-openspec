@@ -3,11 +3,20 @@ import type {
   GetBooksResponseDTO,
   PostBooksRequestDTO,
   PostBooksResponseDTO,
-  PostTransactionsCheckoutRequestDTO,
+  PostLoansBorrowRequestDTO,
+  PostLoansBorrowResponseDTO,
+  PostLoansReturnRequestDTO,
+  PostLoansReturnResponseDTO,
 } from '../types/library'
 
-export function listBooks() {
-  return requestJson<GetBooksResponseDTO>('/api/books')
+export function listBooks(keyword?: string) {
+  const searchParams = new URLSearchParams()
+  if (keyword) {
+    searchParams.set('keyword', keyword)
+  }
+
+  const path = searchParams.size > 0 ? `/api/books?${searchParams.toString()}` : '/api/books'
+  return requestJson<GetBooksResponseDTO>(path)
 }
 
 export function createBook(payload: PostBooksRequestDTO) {
@@ -17,24 +26,16 @@ export function createBook(payload: PostBooksRequestDTO) {
   })
 }
 
-export function addBookCopies(payload: { bookId: string; additionalCopies: number }) {
-  return requestJson<PostBooksResponseDTO>(`/api/books/${payload.bookId}/copies`, {
-    method: 'POST',
-    body: JSON.stringify({
-      additionalCopies: payload.additionalCopies,
-    }),
-  })
-}
-
-export function checkoutBookCopy(payload: PostTransactionsCheckoutRequestDTO) {
-  return requestJson('/api/transactions/checkout', {
+export function borrowBook(payload: PostLoansBorrowRequestDTO) {
+  return requestJson<PostLoansBorrowResponseDTO>('/api/loans/borrow', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 }
 
-export function returnBookCopy(transactionId: string) {
-  return requestJson(`/api/transactions/${transactionId}/return`, {
+export function returnBook(payload: PostLoansReturnRequestDTO) {
+  return requestJson<PostLoansReturnResponseDTO>('/api/loans/return', {
     method: 'POST',
+    body: JSON.stringify(payload),
   })
 }

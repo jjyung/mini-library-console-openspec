@@ -1,0 +1,361 @@
+openapi: 3.0.3
+info:
+  title: Mini Library Console API
+  version: 1.0.0
+  description: |
+    小型圖書櫃管理控制台 API 合約。
+    本合約對應 SCN-LIB-001 / REQ-LIB-001 / ARCH-LIB-001，
+    支援館藏搜尋、建立、借出與歸還，並遵循 business error code、
+    API ID 與 DTO naming 規範。
+servers:
+  - url: /api
+tags:
+  - name: books
+    description: 館藏管理
+  - name: loans
+    description: 借還交易
+paths:
+  /books:
+    get:
+      tags:
+        - books
+      summary: 查詢館藏列表
+      description: |
+        API ID: library-books-001
+        依書名、ISBN、作者與狀態查詢館藏列表。
+      operationId: listBooks
+      parameters:
+        - in: query
+          name: keyword
+          description: 書名、ISBN 或作者關鍵字
+          schema:
+            type: string
+        - in: query
+          name: status
+          description: 館藏狀態
+          schema:
+            $ref: '#/components/schemas/BookStatusEnum'
+      responses:
+        '200':
+          description: 查詢成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetBooksResponseDTO'
+        '400':
+          description: Client Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+    post:
+      tags:
+        - books
+      summary: 新增館藏書籍
+      description: |
+        API ID: library-books-002
+        建立一筆新的館藏書籍資料；ISBN 必須唯一。
+      operationId: createBook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostBooksRequestDTO'
+      responses:
+        '200':
+          description: 建立成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostBooksResponseDTO'
+        '400':
+          description: Client Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+  /loans/borrow:
+    post:
+      tags:
+        - loans
+      summary: 借出書籍
+      description: |
+        API ID: library-loans-001
+        依 ISBN 與讀者 ID 借出書籍，若可借數量減為 0，狀態更新為已借出。
+      operationId: createLoanBorrow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostLoansBorrowRequestDTO'
+      responses:
+        '200':
+          description: 借出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostLoansBorrowResponseDTO'
+        '400':
+          description: Client Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+  /loans/return:
+    post:
+      tags:
+        - loans
+      summary: 歸還書籍
+      description: |
+        API ID: library-loans-002
+        依 ISBN 歸還書籍，恢復可借數量；若書籍恢復可借，狀態更新為可借閱。
+      operationId: createLoanReturn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostLoansReturnRequestDTO'
+      responses:
+        '200':
+          description: 歸還成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostLoansReturnResponseDTO'
+        '400':
+          description: Client Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessErrorResponseDTO'
+components:
+  schemas:
+    BookStatusEnum:
+      type: string
+      enum:
+        - available
+        - borrowed
+        - inactive
+      description: |
+        available = 可借閱
+        borrowed = 已借出（可借數量為 0）
+        inactive = 未上架
+    BookSummaryDTO:
+      type: object
+      required:
+        - id
+        - title
+        - isbn
+        - category
+        - status
+        - availableCount
+        - totalCount
+      properties:
+        id:
+          type: string
+          description: 書籍主鍵
+        title:
+          type: string
+          description: 書名
+        isbn:
+          type: string
+          description: ISBN，為主要識別欄位
+        author:
+          type: string
+          nullable: true
+          description: 作者
+        category:
+          type: string
+          description: 分類
+        status:
+          $ref: '#/components/schemas/BookStatusEnum'
+        availableCount:
+          type: integer
+          minimum: 0
+          description: 可借數量
+        totalCount:
+          type: integer
+          minimum: 1
+          description: 總數量
+        borrowedByReaderId:
+          type: string
+          nullable: true
+          description: 目前借閱人讀者 ID
+    GetBooksResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+        - data
+      properties:
+        code:
+          type: string
+          example: '00000'
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          required:
+            - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/BookSummaryDTO'
+    PostBooksRequestDTO:
+      type: object
+      required:
+        - title
+        - isbn
+        - category
+        - quantity
+        - active
+      properties:
+        title:
+          type: string
+        isbn:
+          type: string
+        author:
+          type: string
+          nullable: true
+        category:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        active:
+          type: boolean
+          description: 是否上架
+    PostBooksResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+        - data
+      properties:
+        code:
+          type: string
+          example: '00000'
+        message:
+          type: string
+          example: success
+        data:
+          $ref: '#/components/schemas/BookSummaryDTO'
+    PostLoansBorrowRequestDTO:
+      type: object
+      required:
+        - isbn
+        - readerId
+      properties:
+        isbn:
+          type: string
+        readerId:
+          type: string
+        dueDate:
+          type: string
+          format: date
+          nullable: true
+          description: 預留欄位；本 scenario 不處理逾期與罰款規則
+    PostLoansBorrowResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+        - data
+      properties:
+        code:
+          type: string
+          example: '00000'
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          required:
+            - isbn
+            - readerId
+            - availableCount
+            - status
+          properties:
+            isbn:
+              type: string
+            readerId:
+              type: string
+            availableCount:
+              type: integer
+              minimum: 0
+            status:
+              $ref: '#/components/schemas/BookStatusEnum'
+    PostLoansReturnRequestDTO:
+      type: object
+      required:
+        - isbn
+      properties:
+        isbn:
+          type: string
+        readerId:
+          type: string
+          nullable: true
+    PostLoansReturnResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+        - data
+      properties:
+        code:
+          type: string
+          example: '00000'
+        message:
+          type: string
+          example: success
+        data:
+          type: object
+          required:
+            - isbn
+            - availableCount
+            - status
+          properties:
+            isbn:
+              type: string
+            availableCount:
+              type: integer
+              minimum: 0
+            status:
+              $ref: '#/components/schemas/BookStatusEnum'
+    BusinessErrorResponseDTO:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: A0000
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      examples:
+        bookNotFound:
+          summary: 找不到書籍
+          value:
+            code: A0404
+            message: 找不到該 ISBN 的書籍
+        bookAlreadyExists:
+          summary: ISBN 已存在
+          value:
+            code: A0409
+            message: ISBN 已存在，無法重複新增
+        bookUnavailable:
+          summary: 書籍不可借出
+          value:
+            code: A0410
+            message: 該書籍不可借出

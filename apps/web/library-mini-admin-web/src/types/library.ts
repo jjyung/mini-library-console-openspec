@@ -4,40 +4,52 @@ export interface ApiEnvelope<TData> {
   data?: TData
 }
 
-export interface ActiveTransaction {
-  transactionId: string
-  borrowerName: string
-  checkedOutAt: string
-}
-
 export interface BookSummary {
   bookId: string
   title: string
-  author: string
-  totalCopies: number
-  availableCopies: number
-  checkedOutCopies: number
-  status: 'AVAILABLE' | 'CHECKED_OUT'
-  activeTransactions: ActiveTransaction[]
+  isbn: string
+  author: string | null
+  category: string
+  status: 'AVAILABLE' | 'BORROWED' | 'INACTIVE'
+  availableCount: number
+  totalCount: number
+  borrowedByReaderId: string | null
 }
 
 export interface GetBooksResponseDTO {
-  books: BookSummary[]
+  items: BookSummary[]
 }
 
 export interface PostBooksRequestDTO {
   title: string
-  author: string
-  initialCopies: number
+  isbn: string
+  author: string | null
+  category: string
+  quantity: number
+  active: boolean
 }
 
 export interface PostBooksResponseDTO {
   book: BookSummary
 }
 
-export interface PostTransactionsCheckoutRequestDTO {
-  bookId: string
-  borrowerName: string
+export interface PostLoansBorrowRequestDTO {
+  isbn: string
+  readerId: string
+  dueDate?: string
+}
+
+export interface PostLoansBorrowResponseDTO {
+  book: BookSummary
+}
+
+export interface PostLoansReturnRequestDTO {
+  isbn: string
+  readerId?: string
+}
+
+export interface PostLoansReturnResponseDTO {
+  book: BookSummary
 }
 
 export interface FeedbackState {

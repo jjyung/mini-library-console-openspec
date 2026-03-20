@@ -3,10 +3,6 @@ package com.example.library.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.example.library.controller.dto.GetBooksResponseDTO;
-import com.example.library.controller.dto.PostBooksResponseDTO;
-import com.example.library.controller.dto.PostTransactionsCheckoutResponseDTO;
-import com.example.library.controller.dto.PostTransactionsReturnResponseDTO;
 import com.example.library.exception.ClientErrorException;
 import com.example.library.repository.InMemoryBookRepository;
 import com.example.library.repository.InMemoryBorrowTransactionRepository;
@@ -31,51 +27,80 @@ class LibraryServiceTest {
     }
 
     @Test
-    void shouldCreateListCheckoutAndReturnBook() {
-        PostBooksResponseDTO createdBook = this.libraryService.createBook("Clean Code", "Robert C. Martin", 2);
-        String bookId = createdBook.book().bookId();
-
-        PostBooksResponseDTO updatedBook = this.libraryService.addCopies(bookId, 1);
-        assertThat(updatedBook.book().totalCopies()).isEqualTo(3);
-        assertThat(updatedBook.book().availableCopies()).isEqualTo(3);
-
-        PostTransactionsCheckoutResponseDTO checkoutResponse = this.libraryService.checkoutBook(bookId, "Samson");
-        assertThat(checkoutResponse.book().availableCopies()).isEqualTo(2);
-        assertThat(checkoutResponse.book().checkedOutCopies()).isEqualTo(1);
-        assertThat(checkoutResponse.transaction().borrowerName()).isEqualTo("Samson");
-
-        PostTransactionsReturnResponseDTO returnResponse = this.libraryService.returnBook(
-            checkoutResponse.transaction().transactionId()
+    void shouldCreateBorrowReturnAndSearchBookByIsbn() {
+        this.libraryService.createBook(
+            "Clean Code",
+            "978-0-13-235088-4",
+            "Robert C. Martin",
+            "technology",
+            2,
+            true
         );
-        assertThat(returnResponse.book().availableCopies()).isEqualTo(3);
-        assertThat(returnResponse.book().checkedOutCopies()).isEqualTo(0);
 
-        GetBooksResponseDTO booksResponse = this.libraryService.listBooks();
-        assertThat(booksResponse.books()).hasSize(1);
-        assertThat(booksResponse.books().getFirst().activeTransactions()).isEmpty();
+        assertThat(this.libraryService.listBooks(null, null).items()).hasSize(1);
+        assertThat(this.libraryService.listBooks("235088", null).items()).hasSize(1);
+
+        var borrowResponse = this.libraryService.borrowBook("978-0-13-235088-4", "samson");
+        assertThat(borrowResponse.book().availableCount()).isEqualTo(1);
+        assertThat(borrowResponse.book().status().name()).isEqualTo("AVAILABLE");
+
+        var secondBorrowResponse = this.libraryService.borrowBook("978-0-13-235088-4", "taylor");
+        assertThat(secondBorrowResponse.book().availableCount()).isZero();
+        assertThat(secondBorrowResponse.book().status().name()).isEqualTo("BORROWED");
+
+        var returnResponse = this.libraryService.returnBook("978-0-13-235088-4", "samson");
+        assertThat(returnResponse.book().availableCount()).isEqualTo(1);
+        assertThat(returnResponse.book().status().name()).isEqualTo("AVAILABLE");
     }
 
     @Test
-    void shouldRejectCheckoutWhenNoCopiesAreAvailable() {
-        PostBooksResponseDTO createdBook = this.libraryService.createBook("DDD", "Eric Evans", 1);
-        this.libraryService.checkoutBook(createdBook.book().bookId(), "Samson");
+    void shouldRejectDuplicateIsbnAndInvalidBorrowState() {
+        this.libraryService.createBook(
+            "Domain-Driven Design",
+            "978-0-321-12521-7",
+            "Eric Evans",
+            "technology",
+            1,
+            true
+        );
 
-        assertThatThrownBy(() -> this.libraryService.checkoutBook(createdBook.book().bookId(), "Taylor"))
+        assertThatThrownBy(() ->
+            this.libraryService.createBook(
+                    "Duplicate DDD",
+                    "978-0-321-12521-7",
+                    "Another Author",
+                    "technology",
+                    1,
+                    true
+                )
+        )
             .isInstanceOf(ClientErrorException.class)
-            .hasMessage("No available copies for checkout");
+            .hasMessage("ISBN 已存在，無法重複新增");
+
+        this.libraryService.borrowBook("978-0-321-12521-7", "samson");
+
+        assertThatThrownBy(() -> this.libraryService.borrowBook("978-0-321-12521-7", "taylor"))
+            .isInstanceOf(ClientErrorException.class)
+            .hasMessage("該書籍已全數借出");
     }
 
     @Test
-    void shouldRejectReturningCompletedTransaction() {
-        PostBooksResponseDTO createdBook = this.libraryService.createBook("DDIA", "Martin Kleppmann", 1);
-        PostTransactionsCheckoutResponseDTO checkoutResponse = this.libraryService.checkoutBook(
-            createdBook.book().bookId(),
-            "Samson"
+    void shouldRejectBorrowForInactiveBookAndReturnWithoutLoan() {
+        this.libraryService.createBook(
+            "Designing Data-Intensive Applications",
+            "978-1-449-37332-0",
+            "Martin Kleppmann",
+            "technology",
+            1,
+            false
         );
-        this.libraryService.returnBook(checkoutResponse.transaction().transactionId());
 
-        assertThatThrownBy(() -> this.libraryService.returnBook(checkoutResponse.transaction().transactionId()))
+        assertThatThrownBy(() -> this.libraryService.borrowBook("978-1-449-37332-0", "samson"))
             .isInstanceOf(ClientErrorException.class)
-            .hasMessage("Transaction is not returnable");
+            .hasMessage("該書籍未上架，無法借閱");
+
+        assertThatThrownBy(() -> this.libraryService.returnBook("978-1-449-37332-0", null))
+            .isInstanceOf(ClientErrorException.class)
+            .hasMessage("該書籍沒有借出記錄");
     }
 }

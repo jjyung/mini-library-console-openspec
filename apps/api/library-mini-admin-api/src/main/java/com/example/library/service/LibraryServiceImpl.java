@@ -1,21 +1,20 @@
 package com.example.library.service;
 
-import com.example.library.controller.dto.ActiveTransactionResponseDTO;
+import com.example.library.api.BusinessCode;
 import com.example.library.controller.dto.BookSummaryResponseDTO;
 import com.example.library.controller.dto.GetBooksResponseDTO;
 import com.example.library.controller.dto.PostBooksResponseDTO;
-import com.example.library.controller.dto.PostTransactionsCheckoutResponseDTO;
-import com.example.library.controller.dto.PostTransactionsReturnResponseDTO;
+import com.example.library.controller.dto.PostLoansBorrowResponseDTO;
+import com.example.library.controller.dto.PostLoansReturnResponseDTO;
 import com.example.library.domain.Book;
 import com.example.library.domain.BookStatusEnum;
-import com.example.library.domain.BorrowTransaction;
 import com.example.library.exception.ClientErrorException;
 import com.example.library.repository.BookRepository;
 import com.example.library.repository.BorrowTransactionRepository;
 import java.time.Clock;
-import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +22,9 @@ import org.springframework.stereotype.Service;
 public class LibraryServiceImpl implements LibraryService {
 
     private final BookRepository bookRepository;
+    @SuppressWarnings("unused")
     private final BorrowTransactionRepository borrowTransactionRepository;
+    @SuppressWarnings("unused")
     private final Clock clock;
 
     public LibraryServiceImpl(
@@ -37,8 +38,10 @@ public class LibraryServiceImpl implements LibraryService {
     }
 
     @Override
-    public GetBooksResponseDTO listBooks() {
+    public GetBooksResponseDTO listBooks(String keyword, String status) {
         List<BookSummaryResponseDTO> books = this.bookRepository.findAll().stream()
+            .filter(book -> matchesKeyword(book, keyword))
+            .filter(book -> matchesStatus(book, status))
             .sorted(Comparator.comparing(Book::getTitle))
             .map(this::toBookSummaryResponse)
             .toList();
@@ -46,123 +49,127 @@ public class LibraryServiceImpl implements LibraryService {
     }
 
     @Override
-    public PostBooksResponseDTO createBook(String title, String author, int initialCopies) {
+    public PostBooksResponseDTO createBook(
+        String title,
+        String isbn,
+        String author,
+        String category,
+        int quantity,
+        boolean active
+    ) {
+        String normalizedIsbn = normalizeRequiredValue(isbn, "isbn");
+        if (this.bookRepository.findByIsbn(normalizedIsbn).isPresent()) {
+            throw new ClientErrorException(BusinessCode.BOOK_ALREADY_EXISTS, "ISBN 已存在，無法重複新增");
+        }
+
         Book book = new Book(
             UUID.randomUUID().toString(),
             normalizeRequiredValue(title, "title"),
-            normalizeRequiredValue(author, "author"),
-            validatePositiveNumber(initialCopies, "initialCopies")
+            normalizedIsbn,
+            normalizeOptionalValue(author),
+            normalizeRequiredValue(category, "category"),
+            validatePositiveNumber(quantity, "quantity"),
+            active
         );
         this.bookRepository.save(book);
         return new PostBooksResponseDTO(toBookSummaryResponse(book));
     }
 
     @Override
-    public PostBooksResponseDTO addCopies(String bookId, int additionalCopies) {
-        Book book = getBookOrThrow(bookId);
-        book.addCopies(validatePositiveNumber(additionalCopies, "additionalCopies"));
+    public PostLoansBorrowResponseDTO borrowBook(String isbn, String readerId) {
+        Book book = getBookByIsbnOrThrow(isbn);
+        if (book.getStatus() == BookStatusEnum.INACTIVE) {
+            throw new ClientErrorException(BusinessCode.BOOK_NOT_BORROWABLE, "該書籍未上架，無法借閱");
+        }
+        if (book.getAvailableCount() == 0) {
+            throw new ClientErrorException(BusinessCode.BOOK_NOT_BORROWABLE, "該書籍已全數借出");
+        }
+
+        book.borrow(normalizeRequiredValue(readerId, "readerId"));
         this.bookRepository.save(book);
-        return new PostBooksResponseDTO(toBookSummaryResponse(book));
+        return new PostLoansBorrowResponseDTO(toBookSummaryResponse(book));
     }
 
     @Override
-    public PostTransactionsCheckoutResponseDTO checkoutBook(String bookId, String borrowerName) {
-        Book book = getBookOrThrow(bookId);
-        if (calculateAvailableCopies(book) <= 0) {
-            throw new ClientErrorException("No available copies for checkout");
+    public PostLoansReturnResponseDTO returnBook(String isbn, String readerId) {
+        Book book = getBookByIsbnOrThrow(isbn);
+        if (book.getAvailableCount() == book.getTotalCount()) {
+            throw new ClientErrorException(BusinessCode.BOOK_NOT_RETURNABLE, "該書籍沒有借出記錄");
         }
 
-        BorrowTransaction borrowTransaction = new BorrowTransaction(
-            UUID.randomUUID().toString(),
-            book.getBookId(),
-            normalizeRequiredValue(borrowerName, "borrowerName"),
-            OffsetDateTime.now(this.clock),
-            null
-        );
-        this.borrowTransactionRepository.save(borrowTransaction);
-
-        return new PostTransactionsCheckoutResponseDTO(
-            toBookSummaryResponse(book),
-            toActiveTransactionResponse(borrowTransaction)
-        );
+        normalizeOptionalValue(readerId);
+        book.returnBook();
+        this.bookRepository.save(book);
+        return new PostLoansReturnResponseDTO(toBookSummaryResponse(book));
     }
 
-    @Override
-    public PostTransactionsReturnResponseDTO returnBook(String transactionId) {
-        BorrowTransaction borrowTransaction = this.borrowTransactionRepository.findById(transactionId)
-            .orElseThrow(() -> new ClientErrorException("Transaction not found"));
-
-        if (!borrowTransaction.isActive()) {
-            throw new ClientErrorException("Transaction is not returnable");
-        }
-
-        borrowTransaction.markReturned(OffsetDateTime.now(this.clock));
-        this.borrowTransactionRepository.save(borrowTransaction);
-
-        Book book = getBookOrThrow(borrowTransaction.getBookId());
-        return new PostTransactionsReturnResponseDTO(toBookSummaryResponse(book));
-    }
-
-    private Book getBookOrThrow(String bookId) {
-        return this.bookRepository.findById(normalizeRequiredValue(bookId, "bookId"))
-            .orElseThrow(() -> new ClientErrorException("Book not found"));
+    private Book getBookByIsbnOrThrow(String isbn) {
+        String normalizedIsbn = normalizeRequiredValue(isbn, "isbn");
+        return this.bookRepository.findByIsbn(normalizedIsbn)
+            .orElseThrow(() -> new ClientErrorException(BusinessCode.BOOK_NOT_FOUND, "找不到該 ISBN 的書籍"));
     }
 
     private String normalizeRequiredValue(String value, String fieldName) {
         if (value == null) {
-            throw new ClientErrorException(fieldName + " must not be blank");
+            throw new ClientErrorException(BusinessCode.VALIDATION_ERROR, fieldName + " must not be blank");
         }
 
         String normalizedValue = value.trim();
         if (normalizedValue.isEmpty()) {
-            throw new ClientErrorException(fieldName + " must not be blank");
+            throw new ClientErrorException(BusinessCode.VALIDATION_ERROR, fieldName + " must not be blank");
         }
         return normalizedValue;
     }
 
+    private String normalizeOptionalValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalizedValue = value.trim();
+        return normalizedValue.isEmpty() ? null : normalizedValue;
+    }
+
     private int validatePositiveNumber(int value, String fieldName) {
         if (value < 1) {
-            throw new ClientErrorException(fieldName + " must be greater than or equal to 1");
+            throw new ClientErrorException(
+                BusinessCode.VALIDATION_ERROR,
+                fieldName + " must be greater than or equal to 1"
+            );
         }
         return value;
     }
 
     private BookSummaryResponseDTO toBookSummaryResponse(Book book) {
-        List<ActiveTransactionResponseDTO> activeTransactions = this.borrowTransactionRepository.findByBookId(book.getBookId())
-            .stream()
-            .filter(BorrowTransaction::isActive)
-            .sorted(Comparator.comparing(BorrowTransaction::getCheckedOutAt))
-            .map(this::toActiveTransactionResponse)
-            .toList();
-
-        int checkedOutCopies = activeTransactions.size();
-        int availableCopies = book.getTotalCopies() - checkedOutCopies;
-        BookStatusEnum status = availableCopies > 0 ? BookStatusEnum.AVAILABLE : BookStatusEnum.CHECKED_OUT;
-
         return new BookSummaryResponseDTO(
             book.getBookId(),
             book.getTitle(),
+            book.getIsbn(),
             book.getAuthor(),
-            book.getTotalCopies(),
-            availableCopies,
-            checkedOutCopies,
-            status,
-            activeTransactions
+            book.getCategory(),
+            book.getStatus(),
+            book.getAvailableCount(),
+            book.getTotalCount(),
+            book.getBorrowedByReaderId()
         );
     }
 
-    private ActiveTransactionResponseDTO toActiveTransactionResponse(BorrowTransaction borrowTransaction) {
-        return new ActiveTransactionResponseDTO(
-            borrowTransaction.getTransactionId(),
-            borrowTransaction.getBorrowerName(),
-            borrowTransaction.getCheckedOutAt()
-        );
+    private boolean matchesKeyword(Book book, String keyword) {
+        String normalizedKeyword = normalizeOptionalValue(keyword);
+        if (normalizedKeyword == null) {
+            return true;
+        }
+
+        String lowerCaseKeyword = normalizedKeyword.toLowerCase(Locale.ROOT);
+        return book.getTitle().toLowerCase(Locale.ROOT).contains(lowerCaseKeyword)
+            || book.getIsbn().toLowerCase(Locale.ROOT).contains(lowerCaseKeyword)
+            || (book.getAuthor() != null && book.getAuthor().toLowerCase(Locale.ROOT).contains(lowerCaseKeyword));
     }
 
-    private int calculateAvailableCopies(Book book) {
-        return book.getTotalCopies() - (int) this.borrowTransactionRepository.findByBookId(book.getBookId())
-            .stream()
-            .filter(BorrowTransaction::isActive)
-            .count();
+    private boolean matchesStatus(Book book, String status) {
+        String normalizedStatus = normalizeOptionalValue(status);
+        if (normalizedStatus == null) {
+            return true;
+        }
+        return book.getStatus().name().equalsIgnoreCase(normalizedStatus);
     }
 }

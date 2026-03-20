@@ -21,81 +21,81 @@ class LibraryApiIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
-    void shouldCreateBookAndListIt() throws Exception {
+    void shouldCreateBookSearchBorrowAndReturnByIsbn() throws Exception {
         this.mockMvc.perform(post("/api/books")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "title": "Clean Code",
+                      "isbn": "978-0-13-235088-4",
                       "author": "Robert C. Martin",
-                      "initialCopies": 2
+                      "category": "technology",
+                      "quantity": 2,
+                      "active": true
                     }
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value("00000"))
-            .andExpect(jsonPath("$.data.book.title").value("Clean Code"));
+            .andExpect(jsonPath("$.data.book.isbn").value("978-0-13-235088-4"));
 
-        this.mockMvc.perform(get("/api/books"))
+        this.mockMvc.perform(get("/api/books").param("keyword", "Clean"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value("00000"))
-            .andExpect(jsonPath("$.data.books", hasSize(1)))
-            .andExpect(jsonPath("$.data.books[0].availableCopies").value(2));
+            .andExpect(jsonPath("$.data.items", hasSize(1)))
+            .andExpect(jsonPath("$.data.items[0].availableCount").value(2));
+
+        this.mockMvc.perform(post("/api/loans/borrow")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "isbn": "978-0-13-235088-4",
+                      "readerId": "samson"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("00000"))
+            .andExpect(jsonPath("$.data.book.availableCount").value(1));
+
+        this.mockMvc.perform(post("/api/loans/return")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "isbn": "978-0-13-235088-4"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("00000"))
+            .andExpect(jsonPath("$.data.book.availableCount").value(2));
     }
 
     @Test
-    void shouldReturnBusinessCodeForInvalidCreateRequest() throws Exception {
+    void shouldReturnSpecificBusinessCodesForClientErrors() throws Exception {
         this.mockMvc.perform(post("/api/books")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "title": " ",
+                      "isbn": "978-0-13-235088-4",
                       "author": "Author",
-                      "initialCopies": 0
+                      "category": "technology",
+                      "quantity": 0,
+                      "active": true
                     }
                     """))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value("A0000"))
+            .andExpect(jsonPath("$.code").value("A0400"))
             .andExpect(jsonPath("$.data").doesNotExist());
-    }
 
-    @Test
-    void shouldReturnBusinessCodeWhenCheckoutWithoutAvailableCopies() throws Exception {
-        String createResponse = this.mockMvc.perform(post("/api/books")
+        this.mockMvc.perform(post("/api/loans/borrow")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "title": "Domain-Driven Design",
-                      "author": "Eric Evans",
-                      "initialCopies": 1
+                      "isbn": "978-9-99-999999-9",
+                      "readerId": "samson"
                     }
                     """))
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-
-        String bookId = createResponse.split("\"bookId\":\"")[1].split("\"")[0];
-
-        this.mockMvc.perform(post("/api/transactions/checkout")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "bookId": "%s",
-                      "borrowerName": "Samson"
-                    }
-                    """.formatted(bookId)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value("00000"));
-
-        this.mockMvc.perform(post("/api/transactions/checkout")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                      "bookId": "%s",
-                      "borrowerName": "Taylor"
-                    }
-                    """.formatted(bookId)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.code").value("A0000"))
-            .andExpect(jsonPath("$.message").value("No available copies for checkout"));
+            .andExpect(jsonPath("$.code").value("A0404"))
+            .andExpect(jsonPath("$.message").value("找不到該 ISBN 的書籍"));
     }
 }

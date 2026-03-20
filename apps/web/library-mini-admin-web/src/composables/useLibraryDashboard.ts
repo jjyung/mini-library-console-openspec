@@ -1,74 +1,77 @@
 import { computed, onMounted, ref } from 'vue'
-import { addBookCopies, checkoutBookCopy, createBook, listBooks, returnBookCopy } from '../services/libraryApi'
-import type { FeedbackState } from '../types/library'
+import { borrowBook, createBook, listBooks, returnBook } from '../services/libraryApi'
+import type {
+  BookSummary,
+  FeedbackState,
+  PostBooksRequestDTO,
+  PostLoansBorrowRequestDTO,
+  PostLoansReturnRequestDTO,
+} from '../types/library'
 
 const DEFAULT_FEEDBACK: FeedbackState = {
   tone: 'neutral',
-  message: 'Ready to manage the shared shelf.',
+  message: '準備開始管理共享書櫃。',
 }
 
 export function useLibraryDashboard() {
-  const books = ref(awaitableEmptyBooks())
+  const books = ref<BookSummary[]>([])
   const busyState = ref(false)
   const feedback = ref<FeedbackState>(DEFAULT_FEEDBACK)
+  const searchKeyword = ref('')
 
   const isLoading = computed(() => busyState.value)
+  const availableCount = computed(() =>
+    books.value.reduce((totalCopies, book) => totalCopies + book.availableCount, 0),
+  )
+  const borrowedCount = computed(() =>
+    books.value.reduce((totalCopies, book) => totalCopies + (book.totalCount - book.availableCount), 0),
+  )
 
   onMounted(async () => {
     await loadBooks()
   })
 
-  async function loadBooks() {
+  async function loadBooks(keyword = searchKeyword.value) {
+    searchKeyword.value = keyword
     await runAction(async () => {
-      const response = await listBooks()
-      books.value = response.books
+      const response = await listBooks(searchKeyword.value.trim())
+      books.value = response.items
       feedback.value = {
         tone: 'neutral',
-        message: response.books.length > 0 ? 'Inventory refreshed.' : DEFAULT_FEEDBACK.message,
+        message: response.items.length > 0 ? '館藏已更新。' : '目前尚無館藏資料。',
       }
     })
   }
 
-  async function handleCreateBook(payload: { title: string; author: string; initialCopies: number }) {
+  async function handleCreateBook(payload: PostBooksRequestDTO) {
     await runAction(async () => {
       await createBook(payload)
-      await loadBooks()
+      await loadBooks(searchKeyword.value)
       feedback.value = {
         tone: 'success',
-        message: 'Book created successfully.',
+        message: `《${payload.title}》已新增到館藏。`,
       }
     })
   }
 
-  async function handleAddCopies(payload: { bookId: string; additionalCopies: number }) {
+  async function handleBorrowBook(payload: PostLoansBorrowRequestDTO) {
     await runAction(async () => {
-      await addBookCopies(payload)
-      await loadBooks()
+      await borrowBook(payload)
+      await loadBooks(searchKeyword.value)
       feedback.value = {
         tone: 'success',
-        message: 'Copies added successfully.',
+        message: `ISBN ${payload.isbn} 借出成功。`,
       }
     })
   }
 
-  async function handleCheckoutBook(payload: { bookId: string; borrowerName: string }) {
+  async function handleReturnBook(payload: PostLoansReturnRequestDTO) {
     await runAction(async () => {
-      await checkoutBookCopy(payload)
-      await loadBooks()
+      await returnBook(payload)
+      await loadBooks(searchKeyword.value)
       feedback.value = {
         tone: 'success',
-        message: 'Checkout completed successfully.',
-      }
-    })
-  }
-
-  async function handleReturnBook(payload: { transactionId: string }) {
-    await runAction(async () => {
-      await returnBookCopy(payload.transactionId)
-      await loadBooks()
-      feedback.value = {
-        tone: 'success',
-        message: 'Return completed successfully.',
+        message: `ISBN ${payload.isbn} 歸還成功。`,
       }
     })
   }
@@ -88,10 +91,12 @@ export function useLibraryDashboard() {
     books,
     isLoading,
     feedback,
+    searchKeyword,
+    availableCount,
+    borrowedCount,
     loadBooks,
     createBook: handleCreateBook,
-    addCopies: handleAddCopies,
-    checkoutBook: handleCheckoutBook,
+    borrowBook: handleBorrowBook,
     returnBook: handleReturnBook,
   }
 }
@@ -108,8 +113,4 @@ function mapErrorToFeedback(error: unknown): FeedbackState {
     tone: 'error',
     message: 'Unable to reach library service.',
   }
-}
-
-function awaitableEmptyBooks() {
-  return [] as Awaited<ReturnType<typeof listBooks>>['books']
 }
