@@ -80,3 +80,50 @@ apply:
   requires:
     - tasks
   tracks: docs/tasks/tasks.md
+
+archive:
+  description: >
+    Archive-time publishing rules.
+    `from.base: change` means paths are resolved from `openspec/changes/<change>/`.
+    `to.base: repo` means paths are resolved from the repository root.
+  syncOnArchive: true
+  syncArtifacts:
+    - id: requirements
+      from:
+        base: change
+        path: docs/requirements/REQ-*.md
+      to:
+        base: repo
+        path: docs/requirements/
+      mode: copy_latest
+      description: Publish the latest approved requirement package into repo-level shared docs on archive.
+
+    - id: architecture
+      from:
+        base: change
+        path: docs/architecture/ARCH-*.md
+      to:
+        base: repo
+        path: docs/architecture/
+      mode: copy_latest
+      description: Publish the latest approved architecture decision into repo-level shared docs on archive.
+
+    - id: apiContract
+      from:
+        base: change
+        path: docs/openapi/openapi.yaml
+      to:
+        base: repo
+        path: docs/openapi/openapi.yaml
+      mode: overwrite
+      description: Replace the repo-level shared OpenAPI contract with the archived change contract when approved.
+
+    - id: qaReport
+      from:
+        base: change
+        path: docs/qa-report/QA-*.md
+      to:
+        base: repo
+        path: docs/qa-report/
+      mode: copy_latest
+      description: Publish the QA verification report into repo-level shared docs on archive.
